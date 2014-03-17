@@ -1,0 +1,2 @@
+uint8 left_image_received
+uint8 right_image_received
