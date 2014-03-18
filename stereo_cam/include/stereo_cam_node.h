@@ -21,7 +21,9 @@ int width_ = 640;
 int height_ = 480;
 int fps_ = 30;
 bool left_camera_ = false;
+int seq_no_ = -1;
 image_transport::Publisher imagePub;
+ros::Publisher capturePub;
 V4lVideo* v4l;
 std::string device_ = "/dev/video";
 

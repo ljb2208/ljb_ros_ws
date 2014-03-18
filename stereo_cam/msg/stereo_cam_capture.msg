@@ -1,2 +1,3 @@
+int32 seq_no
 uint8 left_image_received
 uint8 right_image_received

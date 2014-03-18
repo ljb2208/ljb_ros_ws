@@ -8,7 +8,8 @@
 #include "../include/stereo_cam_node.h"
 
 void stereoCamTriggerCallback(const stereo_cam::stereo_cam_triggerConstPtr& msg) {
-	ROS_INFO("Trigger received: %i", msg->trigger);
+	ROS_DEBUG("Trigger received");
+	seq_no_ = msg->seq_no;
 	captureFrame();
 }
 
@@ -23,11 +24,19 @@ void closeCamera() {
 }
 
 bool captureFrame() {
-
 	sensor_msgs::ImagePtr msg = boost::make_shared<sensor_msgs::Image>();
 	v4l->GrabROSNewest(msg);
 
 	imagePub.publish(msg);
+
+	stereo_cam::stereo_cam_capture captureMsg;
+	captureMsg.left_image_received = true;
+	captureMsg.right_image_received = true;
+	captureMsg.seq_no = seq_no_;
+
+	capturePub.publish(captureMsg);
+
+	ROS_DEBUG("Capture message published.");
 
 	return true;
 }
@@ -62,12 +71,15 @@ int main(int argc, char **argv){
 		imagePub = it.advertise("camera/right_image", 1);
 
 
-	//ros::Subscriber sub = nh.subscribe("stereo_cam_trigger", 10, stereoCamTriggerCallback);
+	capturePub = nh.advertise<stereo_cam::stereo_cam_capture>("stereo_cam_capture", 1);
+	ros::Subscriber sub = nh.subscribe("stereo_cam_trigger", 1, stereoCamTriggerCallback);
+
+	ros::Rate loop_rate(100);
 
 	while (ros::ok()) {
 		ros::spinOnce();
 
-		captureFrame();
+		loop_rate.sleep();
 	}
 
 	closeCamera();

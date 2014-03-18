@@ -106,11 +106,10 @@ include_directories(
 
 ## Declare a cpp library
 #add_library(
-#	v4ldriver src/v4ldriver.cpp
 #)
 
 ## Declare a cpp executable
-add_executable(stereo_cam_node src/stereo_cam_node.cpp src/v4ldriver.cpp src/v4l.cpp)
+add_executable(stereo_cam_node src/stereo_cam_node.cpp src/v4l.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -119,8 +118,7 @@ add_executable(stereo_cam_node src/stereo_cam_node.cpp src/v4ldriver.cpp src/v4l
 ## Specify libraries to link a library or executable target against
 target_link_libraries(stereo_cam_node  
    ${catkin_LIBRARIES}
-   ${OpenCV_LIBS}
-   #v4ldriver
+   ${OpenCV_LIBS}   
 )
 
 #############
