@@ -14,8 +14,8 @@ void stereoCamTriggerCallback(const stereo_cam::stereo_cam_triggerConstPtr& msg)
 }
 
 bool openCamera() {
-	ROS_INFO("Opening device: %s Width: %i Height: %i FPS: %i", device_.c_str(), width_, height_, fps_);
-	v4l = new V4lVideo(device_.c_str(), width_, height_, fps_);
+	ROS_INFO("Opening device: %s Width: %i Height: %i FPS: %i Left Cam: %i Mono Mode: %i", device_.c_str(), width_, height_, fps_, left_camera_, mono_mode_);
+	v4l = new V4lVideo(device_.c_str(), width_, height_, fps_, gs_mode_);
 	return true;
 }
 
@@ -25,13 +25,22 @@ void closeCamera() {
 
 bool captureFrame() {
 	sensor_msgs::ImagePtr msg = boost::make_shared<sensor_msgs::Image>();
+
 	v4l->GrabROSNewest(msg);
 
 	imagePub.publish(msg);
 
 	stereo_cam::stereo_cam_capture captureMsg;
-	captureMsg.left_image_received = true;
-	captureMsg.right_image_received = true;
+
+	if (mono_mode_) {
+		captureMsg.left_image_received = true;
+		captureMsg.right_image_received = true;
+	} else {
+		if (left_camera_)
+			captureMsg.left_image_received = true;
+		else
+			captureMsg.right_image_received = true;
+	}
 	captureMsg.seq_no = seq_no_;
 
 	capturePub.publish(captureMsg);
@@ -43,16 +52,19 @@ bool captureFrame() {
 
 int main(int argc, char **argv){
 
-	ros::init(argc, argv, "stereo_camera_capture");
+	ros::init(argc, argv, "stereo_camera_capture", ros::init_options::AnonymousName);
 
 	ros::NodeHandle nh;
 	ros::NodeHandle nh_private("~");
 
-	nh.param("camera_id", camera_id_, int(0));
-	nh.param("left_camera", left_camera_, bool(false));
-	nh.param("width", width_, int(640));
-	nh.param("height", height_, int(480));
-	nh.param("fps", fps_, int(30));
+	nh_private.param("camera_id", camera_id_, int(0));
+	nh_private.param("left_camera", left_camera_, bool(false));
+	nh_private.param("mono_mode", mono_mode_, bool(false));
+	nh_private.param("gs_mode", gs_mode_, bool(false));
+	nh_private.param("width", width_, int(640));
+	nh_private.param("height", height_, int(480));
+	nh_private.param("fps", fps_, int(30));
+
 
 	if (camera_id_ < 0)
 		ROS_WARN("Invalid camera ID");
@@ -65,22 +77,26 @@ int main(int argc, char **argv){
 
 	image_transport::ImageTransport it(nh);
 
-	if (left_camera_)
+	if (left_camera_) {
 		imagePub = it.advertise("camera/left_image", 1);
-	else
+	}
+	else {
 		imagePub = it.advertise("camera/right_image", 1);
+	}
 
 
 	capturePub = nh.advertise<stereo_cam::stereo_cam_capture>("stereo_cam_capture", 1);
 	ros::Subscriber sub = nh.subscribe("stereo_cam_trigger", 1, stereoCamTriggerCallback);
 
-	ros::Rate loop_rate(100);
+	ros::spin();
+	/*
+	ros::Rate r(100);
 
 	while (ros::ok()) {
 		ros::spinOnce();
-
-		loop_rate.sleep();
+		r.sleep();
 	}
+	*/
 
 	closeCamera();
 

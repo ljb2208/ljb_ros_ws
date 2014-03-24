@@ -102,6 +102,11 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   /usr/local/include
+  /opt/intel/ipp/include
+)
+
+link_directories(
+	/opt/intel/ipp/lib/ia32
 )
 
 ## Declare a cpp library
@@ -118,7 +123,12 @@ add_executable(stereo_cam_node src/stereo_cam_node.cpp src/v4l.cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(stereo_cam_node  
    ${catkin_LIBRARIES}
-   ${OpenCV_LIBS}   
+   ${OpenCV_LIBS}     
+   ippcore 
+   ippvm
+   ippcc
+   ipps
+   ippi
 )
 
 #############
@@ -136,11 +146,11 @@ target_link_libraries(stereo_cam_node
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS stereo_cam stereo_cam_node
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+install(TARGETS stereo_cam_node
+   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/

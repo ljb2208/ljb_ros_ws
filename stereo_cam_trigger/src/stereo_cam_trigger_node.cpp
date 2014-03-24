@@ -33,6 +33,7 @@ void trigger() {
 
 	trigger_pub.publish(msg);
 
+
 	ROS_DEBUG("Trigger sent");
 }
 
@@ -49,6 +50,7 @@ void stereoCamCaptureCallback(const stereo_cam::stereo_cam_captureConstPtr msg) 
 		right_image_rec = false;
 
 		trigger();
+		loopCounter = 0;
 	}
 }
 

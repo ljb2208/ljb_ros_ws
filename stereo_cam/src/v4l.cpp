@@ -37,14 +37,16 @@ static int xioctl(int fd, int request, void* arg)
     return r;
 }
 
-V4lVideo::V4lVideo(const char* dev_name, int width_, int height_, float fps_, io_method io)
+V4lVideo::V4lVideo(const char* dev_name, int width_, int height_, float fps_, bool gs_, io_method io)
     : io(io), fd(-1), buffers(0), n_buffers(0), running(false)
 {
 	width = width_;
 	height = height_;
 	fps = fps_;
     open_device(dev_name);
+    gs = gs_;
     init_device(dev_name, width, height, fps);
+
     Start();
 }
 
@@ -82,29 +84,35 @@ std::string V4lVideo::PixFormat() const
 
 bool V4lVideo::GrabROSNewest(sensor_msgs::ImagePtr msg) {
 
-	//msg->height = height;
-	//msg->width = width;
-	//msg->step = width * 3;
 	unsigned char* image = (unsigned char*) malloc(height * width * 3);
-	unsigned char* rgbimage = (unsigned char*) malloc(height * width * 3);
+	unsigned char* convertImage;
 
 	GrabNewest(image, true);
 
-	yuyv2rgb(image, rgbimage, height * width);
 
-	free(image);
+	if (gs) {
+		convertImage = (unsigned char*) malloc(height * width);
+		yuyv2gs(image, convertImage, height * width);
+		msg->encoding = "mono8";
+		msg->step = width;
+		msg->data.resize(height * width);
+		memcpy((unsigned char*)(&msg->data[0]), convertImage, height * width);
+	}
+	else {
+		convertImage = (unsigned char*) malloc(height * width * 3);
+		yuyv2bgr(image, convertImage, height * width);
+		msg->encoding = "bgr8";
+		msg->step = width * 3;
+		msg->data.resize(height * width * 3);
+		memcpy((unsigned char*)(&msg->data[0]), convertImage, height * width * 3);
+	}
 
 	msg->height = height;
 	msg->width = width;
-	msg->step = width * 3;
-	msg->data.resize(height * width * 3);
-	msg->encoding = "rgb8";
 	msg->is_bigendian = false;
 
-	memcpy((unsigned char*)(&msg->data[0]), rgbimage, height * width * 3);
-
-	free(rgbimage);
-
+	free(image);
+	free(convertImage);
 
 	return true;
 }
@@ -673,120 +681,8 @@ void V4lVideo::open_device(const char* dev_name)
     }
 }
 
-const unsigned char uchar_clipping_table[] = {
-  0,0,0,0,0,0,0,0, // -128 - -121
-  0,0,0,0,0,0,0,0, // -120 - -113
-  0,0,0,0,0,0,0,0, // -112 - -105
-  0,0,0,0,0,0,0,0, // -104 -  -97
-  0,0,0,0,0,0,0,0, //  -96 -  -89
-  0,0,0,0,0,0,0,0, //  -88 -  -81
-  0,0,0,0,0,0,0,0, //  -80 -  -73
-  0,0,0,0,0,0,0,0, //  -72 -  -65
-  0,0,0,0,0,0,0,0, //  -64 -  -57
-  0,0,0,0,0,0,0,0, //  -56 -  -49
-  0,0,0,0,0,0,0,0, //  -48 -  -41
-  0,0,0,0,0,0,0,0, //  -40 -  -33
-  0,0,0,0,0,0,0,0, //  -32 -  -25
-  0,0,0,0,0,0,0,0, //  -24 -  -17
-  0,0,0,0,0,0,0,0, //  -16 -   -9
-  0,0,0,0,0,0,0,0, //   -8 -   -1
-  0,1,2,3,4,5,6,7,
-  8,9,10,11,12,13,14,15,
-  16,17,18,19,20,21,22,23,
-  24,25,26,27,28,29,30,31,
-  32,33,34,35,36,37,38,39,
-  40,41,42,43,44,45,46,47,
-  48,49,50,51,52,53,54,55,
-  56,57,58,59,60,61,62,63,
-  64,65,66,67,68,69,70,71,
-  72,73,74,75,76,77,78,79,
-  80,81,82,83,84,85,86,87,
-  88,89,90,91,92,93,94,95,
-  96,97,98,99,100,101,102,103,
-  104,105,106,107,108,109,110,111,
-  112,113,114,115,116,117,118,119,
-  120,121,122,123,124,125,126,127,
-  128,129,130,131,132,133,134,135,
-  136,137,138,139,140,141,142,143,
-  144,145,146,147,148,149,150,151,
-  152,153,154,155,156,157,158,159,
-  160,161,162,163,164,165,166,167,
-  168,169,170,171,172,173,174,175,
-  176,177,178,179,180,181,182,183,
-  184,185,186,187,188,189,190,191,
-  192,193,194,195,196,197,198,199,
-  200,201,202,203,204,205,206,207,
-  208,209,210,211,212,213,214,215,
-  216,217,218,219,220,221,222,223,
-  224,225,226,227,228,229,230,231,
-  232,233,234,235,236,237,238,239,
-  240,241,242,243,244,245,246,247,
-  248,249,250,251,252,253,254,255,
-  255,255,255,255,255,255,255,255, // 256-263
-  255,255,255,255,255,255,255,255, // 264-271
-  255,255,255,255,255,255,255,255, // 272-279
-  255,255,255,255,255,255,255,255, // 280-287
-  255,255,255,255,255,255,255,255, // 288-295
-  255,255,255,255,255,255,255,255, // 296-303
-  255,255,255,255,255,255,255,255, // 304-311
-  255,255,255,255,255,255,255,255, // 312-319
-  255,255,255,255,255,255,255,255, // 320-327
-  255,255,255,255,255,255,255,255, // 328-335
-  255,255,255,255,255,255,255,255, // 336-343
-  255,255,255,255,255,255,255,255, // 344-351
-  255,255,255,255,255,255,255,255, // 352-359
-  255,255,255,255,255,255,255,255, // 360-367
-  255,255,255,255,255,255,255,255, // 368-375
-  255,255,255,255,255,255,255,255, // 376-383
-};
-const int clipping_table_offset = 128;
+void V4lVideo::yuyv2bgr(unsigned char *YUV, unsigned char *BGR, int NumPixels) {
 
-/** Clip a value to the range 0<val<255. For speed this is done using an
- * array, so can only cope with numbers in the range -128<val<383.
- */
-unsigned char V4lVideo::CLIPVALUE(int val)
-{
-  // Old method (if)
-/*   val = val < 0 ? 0 : val; */
-/*   return val > 255 ? 255 : val; */
-
-  // New method (array)
-  return uchar_clipping_table[val+clipping_table_offset];
-}
-
-void V4lVideo::YUV2RGB(const unsigned char y,
-        const unsigned char u,
-        const unsigned char v,
-        unsigned char* r,
-        unsigned char* g,
-        unsigned char* b)
-{
-  const int y2=(int)y;
-  const int u2=(int)u-128;
-  const int v2=(int)v-128;
-  //std::cerr << "YUV=("<<y2<<","<<u2<<","<<v2<<")"<<std::endl;
-
-
-  // This is the normal YUV conversion, but
-  // appears to be incorrect for the firewire cameras
-  //   int r2 = y2 + ( (v2*91947) >> 16);
-  //   int g2 = y2 - ( ((u2*22544) + (v2*46793)) >> 16 );
-  //   int b2 = y2 + ( (u2*115999) >> 16);
-  // This is an adjusted version (UV spread out a bit)
-  int r2 = y2 + ( (v2*37221) >> 15);
-  int g2 = y2 - ( ((u2*12975) + (v2*18949)) >> 15 );
-  int b2 = y2 + ( (u2*66883) >> 15);
-  //std::cerr << "   RGB=("<<r2<<","<<g2<<","<<b2<<")"<<std::endl;
-
-
-  // Cap the values.
-  *r=CLIPVALUE(r2);
-  *g=CLIPVALUE(g2);
-  *b=CLIPVALUE(b2);
-}
-
-
-void V4lVideo::yuyv2rgb(unsigned char *YUV, unsigned char *RGB, int NumPixels) {
   int i, j;
   unsigned char y0, y1, u, v;
   unsigned char r, g, b;
@@ -797,13 +693,58 @@ void V4lVideo::yuyv2rgb(unsigned char *YUV, unsigned char *RGB, int NumPixels) {
       u = (unsigned char) YUV[i + 1];
       y1 = (unsigned char) YUV[i + 2];
       v = (unsigned char) YUV[i + 3];
-      YUV2RGB (y0, u, v, &r, &g, &b);
-      RGB[j + 0] = r;
-      RGB[j + 1] = g;
-      RGB[j + 2] = b;
-      YUV2RGB (y1, u, v, &r, &g, &b);
-      RGB[j + 3] = r;
-      RGB[j + 4] = g;
-      RGB[j + 5] = b;
+      yuv2bgr(y0, u, v, &r, &g, &b);
+      BGR[j + 0] = b;
+      BGR[j + 1] = g;
+      BGR[j + 2] = r;
+      yuv2bgr(y1, u, v, &r, &g, &b);
+      BGR[j + 3] = b;
+      BGR[j + 4] = g;
+      BGR[j + 5] = r;
     }
+}
+
+void V4lVideo::yuv2bgr(int y, int u, int v, unsigned char *r, unsigned char *g, unsigned char *b) {
+	int r1, g1, b1;
+
+	// replaces floating point coefficients
+	int c = y-16, d = u - 128, e = v - 128;
+
+	// Conversion that avoids floating point
+	r1 = (298 * c           + 409 * e + 128) >> 8;
+	g1 = (298 * c - 100 * d - 208 * e + 128) >> 8;
+	b1 = (298 * c + 516 * d           + 128) >> 8;
+
+	// Computed values may need clipping.
+	if (r1 > 255) r1 = 255;
+	if (g1 > 255) g1 = 255;
+	if (b1 > 255) b1 = 255;
+
+	if (r1 < 0) r1 = 0;
+	if (g1 < 0) g1 = 0;
+	if (b1 < 0) b1 = 0;
+
+	*r = r1 ;
+	*g = g1 ;
+	*b = b1 ;
+}
+
+void V4lVideo::yuyv2gs(unsigned char *YUV, unsigned char *GS, int NumPixels) {
+	int i, j;
+	  unsigned char y0, y1, u, v;
+	  unsigned char gs;
+
+	  for (i = 0, j = 0; i < (NumPixels << 1); i += 4, j += 2)
+	    {
+	      y0 = (unsigned char) YUV[i + 0];
+	      y1 = (unsigned char) YUV[i + 2];
+	      yuv2gs(y0, &gs);
+	      GS[j + 0] = gs;
+	      yuv2gs(y1, &gs);
+	      GS[j + 1] = gs;
+	    }
+}
+
+void V4lVideo::yuv2gs(int y, unsigned char *gs) {
+	*gs = y;
 }
