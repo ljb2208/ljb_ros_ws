@@ -113,8 +113,9 @@ add_executable(stereo_cam_calibrate_node src/stereo_cam_calibrate_node.cpp src/S
 # add_dependencies(stereo_cam_calibrate_node stereo_cam_calibrate_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(stereo_cam_calibrate_node
+target_link_libraries(stereo_cam_calibrate_node	
    ${catkin_LIBRARIES}
+ 
 )
 
 #############

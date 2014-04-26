@@ -84,7 +84,6 @@ int main(int argc, char **argv){
 		imagePub = it.advertise("camera/right_image", 1);
 	}
 
-
 	capturePub = nh.advertise<stereo_cam::stereo_cam_capture>("stereo_cam_capture", 1);
 	ros::Subscriber sub = nh.subscribe("stereo_cam_trigger", 1, stereoCamTriggerCallback);
 

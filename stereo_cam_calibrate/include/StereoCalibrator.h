@@ -14,23 +14,36 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <vector>
+#include <algorithm>
+#include <iostream>
+#include <iterator>
+#include <fstream>
+#include <time.h>
+#include <string>
+
+#include "ros/ros.h"
 
 static const std::string LEFT_WINDOW = "Left Image";
 static const std::string RIGHT_WINDOW = "Right Image";
 
 class StereoCalibrator {
 public:
-	StereoCalibrator(int num_corners_x, int num_corners_y, int square_size, int window_size, int zero_zone, int max_iterations, double epsilon);
+	StereoCalibrator(int num_corners_x, int num_corners_y, int square_size, int window_size, int zero_zone, int max_iterations, double epsilon, double alpha);
 	virtual ~StereoCalibrator();
 	void setLeftImage(cv_bridge::CvImagePtr imgptr);
 	void setRightImage(cv_bridge::CvImagePtr imgptr);
 	int captureImage();
 	void toggleDisplayCorners();
 	void calibrateCameras();
+	void saveCalibrationToFile(std::string fileName);
+
+	double leftReprojectionError;
+	double rightReprojectionError;
+	double stereoReprojectionError;
 
 private:
-	cv_bridge::CvImagePtr leftImage;
-	cv_bridge::CvImagePtr rightImage;
+	cv::Mat leftImage;
+	cv::Mat rightImage;
 
 	CvSize corners;
 	CvSize imageSize;
@@ -39,28 +52,62 @@ private:
 
 	int max_iteratons;
 	double epsilon;
+	double stereoEpsilon;
 	int square_size;
 
-	std::vector<cv_bridge::CvImagePtr> leftImages;
-	std::vector<cv_bridge::CvImagePtr> rightImages;
+	std::string path;
+
+	std::vector<cv::Mat> leftImages;
+	std::vector<cv::Mat> rightImages;
 
 	std::vector<std::vector<cv::Point2f> > leftImagePoints;
 	std::vector<std::vector<cv::Point2f> > rightImagePoints;
+
+	std::vector<cv::Point2f> leftImagePointsTemp;
+	std::vector<cv::Point2f> rightImagePointsTemp;
+
+	int leftResult;
+	int rightResult;
 
 	cv::Mat leftCameraMatrix;
 	cv::Mat leftDistCoeffs;
 	cv::Mat rightCameraMatrix;
 	cv::Mat rightDistCoeffs;
-	std::vector<cv::Mat> rvecs;
-	std::vector<cv::Mat> tvecs;
-	std::vector<cv::Mat> evecs;
-	std::vector<cv::Mat> fvecs;
+	cv::Mat rvecs;
+	cv::Mat tvecs;
+	cv::Mat evecs;
+	cv::Mat fvecs;
 
-	cv::Mat displayCorners(cv_bridge::CvImagePtr image);
-	int findCorners(cv_bridge::CvImagePtr image, std::vector<cv::Point2f> &points, bool store, bool leftImage);
+	//std::vector<std::vector<cv::Point3f>> testPoints;
+	std::vector<std::vector<cv::Point3f> > objectPoints;
 
+	cv::Mat displayCorners(cv_bridge::CvImagePtr image, bool leftImage);
+	int findCorners(cv::Mat image, std::vector<cv::Point2f> &points, bool leftImage);
+	double calibrateCamera(bool leftCamera);
+
+	void checkIfFileExists(std::string fileName);
+	std::string getFullPathName(std::string fileName);
 
 	bool display_corners;
+
+	cv::Mat r1;
+	cv::Mat r2;
+	cv::Mat p1;
+	cv::Mat p2;
+	cv::Mat q;
+
+	cv::Size rectifiedImageSize;
+
+	cv::Rect validPixROI1;
+	cv::Rect validPixROI2;
+
+
+	cv::Mat leftMap1;
+	cv::Mat leftMap2;
+	cv::Mat rightMap1;
+	cv::Mat rightMap2;
+
+	double alpha;
 };
 
 #endif /* STEREOCALIBRATOR_H_ */

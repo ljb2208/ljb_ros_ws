@@ -52,13 +52,14 @@ int main(int argc, char **argv){
 	nh_private.param("max_iterations", max_iterations_, int(30));
 	nh_private.param("epsilon", epsilon_, double(0.01));
 	nh_private.param("max_iterations", max_iterations_, int(30));
+	nh_private.param("alpha", alpha_, double(-1));
 
 
 	image_transport::ImageTransport it(nh);
 	image_transport::Subscriber leftSub = it.subscribe(left_image_topic_, 1, leftImageCallback);
-	image_transport::Subscriber rightSub = it.subscribe(left_image_topic_, 1, rightImageCallback);
+	image_transport::Subscriber rightSub = it.subscribe(right_image_topic_, 1, rightImageCallback);
 
-	stereo_calib = new StereoCalibrator(num_corners_x_, num_corners_y_, square_size_, window_size_, zero_zone_, max_iterations_, epsilon_);
+	stereo_calib = new StereoCalibrator(num_corners_x_, num_corners_y_, square_size_, window_size_, zero_zone_, max_iterations_, epsilon_, alpha_);
 
 	while (ros::ok()) {
 		ros::spinOnce();
@@ -69,8 +70,12 @@ int main(int argc, char **argv){
 			ROS_INFO("Captured image set. Count: %i", count);
 		} else if (keyPress == (int) 'a') {
 			stereo_calib->calibrateCameras();
+			ROS_INFO("Reprojection errors. Left: %f Right: %f Stereo %f", stereo_calib->leftReprojectionError, stereo_calib->rightReprojectionError,
+					stereo_calib->stereoReprojectionError);
 		} else if (keyPress == (int) 'd') {
 			stereo_calib->toggleDisplayCorners();
+		} else if (keyPress == (int) 's') {
+			stereo_calib->saveCalibrationToFile("stereo_calib.yml");
 		}
 		else if (keyPress == (int) 'q') {
 			break;
