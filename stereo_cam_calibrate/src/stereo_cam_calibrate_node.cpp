@@ -46,7 +46,7 @@ int main(int argc, char **argv){
 	nh_private.param("num_corners_x", num_corners_x_, int(8));
 	nh_private.param("num_corners_y", num_corners_y_, int(6));
 
-	nh_private.param("square_size", square_size_, int(2));
+	nh_private.param("square_size", square_size_, double(0.024));
 	nh_private.param("window_size", window_size_, int(11));
 	nh_private.param("zero_zone", zero_zone_, int(-1));
 	nh_private.param("max_iterations", max_iterations_, int(30));
@@ -76,6 +76,8 @@ int main(int argc, char **argv){
 			stereo_calib->toggleDisplayCorners();
 		} else if (keyPress == (int) 's') {
 			stereo_calib->saveCalibrationToFile("stereo_calib.yml");
+		} else if (keyPress == (int) 'z') {
+			stereo_calib->checkCalibration();
 		}
 		else if (keyPress == (int) 'q') {
 			break;

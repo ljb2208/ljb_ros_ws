@@ -7,7 +7,7 @@
 
 #include "../include/StereoCalibrator.h"
 
-StereoCalibrator::StereoCalibrator(int num_corners_x, int num_corners_y, int square_size, int window_size, int zero_zone, int max_iterations, double epsilon, double alpha) {
+StereoCalibrator::StereoCalibrator(int num_corners_x, int num_corners_y, float square_size, int window_size, int zero_zone, int max_iterations, double epsilon, double alpha) {
 	// TODO Auto-generated constructor stub
 	cv::namedWindow(LEFT_WINDOW, CV_WINDOW_NORMAL);
 	cv::namedWindow(RIGHT_WINDOW, CV_WINDOW_NORMAL);
@@ -34,6 +34,9 @@ StereoCalibrator::StereoCalibrator(int num_corners_x, int num_corners_y, int squ
 	leftReprojectionError = 0;
 	rightReprojectionError = 0;
 	stereoReprojectionError = 0;
+
+	leftCameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+	rightCameraMatrix = cv::Mat::eye(3, 3, CV_64F);
 
 	leftResult = 0;
 	rightResult = 0;
@@ -97,17 +100,6 @@ cv::Mat StereoCalibrator::displayCorners(cv_bridge::CvImagePtr image, bool leftI
 void StereoCalibrator::calibrateCameras() {
 	objectPoints.clear();
 
-	/*
-	for (int i=0; i< leftImagePoints.size(); i++) {
-		for (int x=0; x < corners.width; x++)
-			for (int y=0; y < corners.height; y++) {
-				cv::Point3f point;
-				point.x = corners.width + x +(x*corners.width);
-				point.y = corners.height + y + (y * corners.height);
-				point.z = 0;
-				objectPoints.at(i).push_back(point);
-			}
-	}*/
 	for (int i=0; i< leftImagePoints.size(); i++) {
 		std::vector<cv::Point3f> corner_points;
 
@@ -129,15 +121,11 @@ void StereoCalibrator::calibrateCameras() {
 	leftReprojectionError = calibrateCamera(true);
 	rightReprojectionError = calibrateCamera(false);
 
-	//leftCameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-	//rightCameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-
 	rectifiedImageSize.operator =(imageSize);
-
 
 	stereoReprojectionError = cv::stereoCalibrate(objectPoints, leftImagePoints, rightImagePoints, leftCameraMatrix, leftDistCoeffs,
 			rightCameraMatrix, rightDistCoeffs, imageSize, rvecs, tvecs, evecs, fvecs,
-			cvTermCriteria(CV_TERMCRIT_ITER+CV_TERMCRIT_EPS, max_iteratons, stereoEpsilon), CV_CALIB_FIX_INTRINSIC);
+			cvTermCriteria(CV_TERMCRIT_ITER+CV_TERMCRIT_EPS, max_iteratons, stereoEpsilon), CV_CALIB_FIX_INTRINSIC + CV_CALIB_SAME_FOCAL_LENGTH);
 
 	cv::stereoRectify(leftCameraMatrix, leftDistCoeffs, rightCameraMatrix, rightDistCoeffs, imageSize, rvecs, tvecs,
 				r1, r2, p1, p2, q, CV_CALIB_ZERO_DISPARITY, alpha, rectifiedImageSize, &validPixROI1, &validPixROI2);
@@ -146,6 +134,7 @@ void StereoCalibrator::calibrateCameras() {
 	cv::initUndistortRectifyMap(rightCameraMatrix, rightDistCoeffs, r2, p2, imageSize, CV_16SC2, rightMap1, rightMap2);
 
 	ROS_INFO("Stereo calibration complete. Stereo Reprojection Error: %f. Left Reprojection Error: %f. Right Reprojection error: %f. Save file by pressing 's'.", stereoReprojectionError, leftReprojectionError, rightReprojectionError);
+	ROS_INFO("POI. Left: %i Right: %i", validPixROI1.area(), validPixROI2.area());
 }
 
 double StereoCalibrator::calibrateCamera(bool leftCamera) {
@@ -192,6 +181,56 @@ int StereoCalibrator::findCorners(cv::Mat image, std::vector<cv::Point2f> &point
 
 	return result;
 
+}
+
+void StereoCalibrator::checkCalibration() {
+	std::vector<cv::Vec3f> lines[2];
+
+	double error = 0;
+	int npoints = 0;
+
+	for (int i=0; i < leftImagePoints.size(); i++) {
+
+		int npt = leftImagePoints[i].size();
+
+		checkCalibrationPerCamera(true, lines[0], i);
+		checkCalibrationPerCamera(false, lines[1], i);
+
+
+		for( int j = 0; j < npt; j++ )
+		{
+			cv::Point2f pnt = leftImagePoints[i][j];
+			cv::Vec3f v = lines[1][j];
+			float val = v[0];
+			float val1 = ((cv::Vec3f)(lines[1][j]))[0];
+
+			double errij = std::fabs(leftImagePoints[i][j].x*((cv::Vec3f)(lines[1][j]))[0] +
+									 leftImagePoints[i][j].y*((cv::Vec3f)(lines[1][j]))[1] +
+									((cv::Vec3f)(lines[1][j]))[2]) +
+							   std::fabs(rightImagePoints[i][j].x*((cv::Vec3f)(lines[0][j]))[0] +
+									rightImagePoints[i][j].y*((cv::Vec3f)(lines[0][j]))[1] +
+									((cv::Vec3f)(lines[0][j]))[2]);
+			error += errij;
+
+		}
+		npoints += npt;
+	}
+
+	ROS_INFO("Average reprojection error: %f", error/npoints);
+}
+
+void StereoCalibrator::checkCalibrationPerCamera(bool leftCamera, std::vector<cv::Vec3f> lines, int imageIndex) {
+
+	cv::Mat imgpt = cv::Mat((leftCamera ? leftImagePoints[imageIndex] : rightImagePoints[imageIndex]));
+
+	cv::undistortPoints(imgpt, imgpt, (leftCamera ? leftCameraMatrix : rightCameraMatrix),
+				(leftCamera ? leftDistCoeffs : rightDistCoeffs), cv::Mat(),
+				(leftCamera ? leftCameraMatrix : rightCameraMatrix));
+
+	ROS_INFO("Image points depth: %i", imgpt.depth());
+	ROS_INFO("points check vector: %i", imgpt.checkVector(2));
+
+	cv::computeCorrespondEpilines(imgpt, (leftCamera ? 1 : 2), fvecs, lines);
 }
 
 void StereoCalibrator::saveCalibrationToFile( std::string fileName) {

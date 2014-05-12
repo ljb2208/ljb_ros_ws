@@ -25,7 +25,7 @@ int zero_zone_;
 int max_iterations_;
 double epsilon_;
 double alpha_;
-int square_size_; // in cm
+double square_size_; // in cm
 
 StereoCalibrator* stereo_calib;
 

@@ -11,10 +11,12 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <iterator>
 #include <fstream>
@@ -28,7 +30,7 @@ static const std::string RIGHT_WINDOW = "Right Image";
 
 class StereoCalibrator {
 public:
-	StereoCalibrator(int num_corners_x, int num_corners_y, int square_size, int window_size, int zero_zone, int max_iterations, double epsilon, double alpha);
+	StereoCalibrator(int num_corners_x, int num_corners_y, float square_size, int window_size, int zero_zone, int max_iterations, double epsilon, double alpha);
 	virtual ~StereoCalibrator();
 	void setLeftImage(cv_bridge::CvImagePtr imgptr);
 	void setRightImage(cv_bridge::CvImagePtr imgptr);
@@ -36,10 +38,13 @@ public:
 	void toggleDisplayCorners();
 	void calibrateCameras();
 	void saveCalibrationToFile(std::string fileName);
+	void checkCalibration();
+
 
 	double leftReprojectionError;
 	double rightReprojectionError;
 	double stereoReprojectionError;
+
 
 private:
 	cv::Mat leftImage;
@@ -53,7 +58,7 @@ private:
 	int max_iteratons;
 	double epsilon;
 	double stereoEpsilon;
-	int square_size;
+	float square_size;
 
 	std::string path;
 
@@ -84,6 +89,9 @@ private:
 	cv::Mat displayCorners(cv_bridge::CvImagePtr image, bool leftImage);
 	int findCorners(cv::Mat image, std::vector<cv::Point2f> &points, bool leftImage);
 	double calibrateCamera(bool leftCamera);
+
+
+	void checkCalibrationPerCamera(bool leftCamera, std::vector<cv::Vec3f> lines, int imageIndex);
 
 	void checkIfFileExists(std::string fileName);
 	std::string getFullPathName(std::string fileName);
