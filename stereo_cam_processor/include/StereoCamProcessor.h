@@ -97,6 +97,7 @@ private:
 	cv::StereoBM stereoBM;
 	cv::StereoSGBM stereoSGBM;
 
+	cv::Mat dispImageTemp;
 	cv::Mat dispImage;
 	cv::Mat dispImageGS;
 
@@ -111,7 +112,7 @@ private:
 	cv::Rect validPixROI2;
 
 
-	void calculateDisparity();
+	void calculateDisparity(bool override);
 	void reprojectTo3D();
 	void convertToPointCloud();
 	void runBlockMatch();
