@@ -12,6 +12,7 @@
 #include <linux/videodev2.h>
 #include <string>
 #include <image_transport/image_transport.h>
+#include "../include/image_scaler.h"
 #include <cv.h>
 
 typedef enum
@@ -42,12 +43,10 @@ struct VideoException : std::exception
     std::string desc;
 };
 
-
-
 class V4lVideo
 {
 public:
-    V4lVideo(const char* dev_name, int width_, int height_, float fps_,bool gs_, io_method io = IO_METHOD_MMAP);
+    V4lVideo(const char* dev_name, int width_, int height_, float fps_,bool gs_, int scale_, io_method io = IO_METHOD_MMAP);
     ~V4lVideo();
 
     //! Implement VideoSource::Start()
@@ -93,11 +92,18 @@ protected:
     bool running;
     unsigned width;
     unsigned height;
+    unsigned scaleWidth;
+    unsigned scaleHeight;
     float fps;
     size_t image_size;
     bool gs;
     bool thumbnail;
-    int scaling;
+    int scale;
+
+    image_scaler* scaler;
+
+    bool convertToGS(unsigned char* image, unsigned char *convertImage);
+    bool convertToBGR(unsigned char* image, unsigned char *convertImage);
 
     void yuv2bgr(int y, int u, int v, unsigned char *r, unsigned char *g, unsigned char *b);
     void yuyv2bgr(unsigned char *YUV, unsigned char *RGB, int NumPixels);

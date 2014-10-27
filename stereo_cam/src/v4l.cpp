@@ -37,7 +37,7 @@ static int xioctl(int fd, int request, void* arg)
     return r;
 }
 
-V4lVideo::V4lVideo(const char* dev_name, int width_, int height_, float fps_, bool gs_, io_method io)
+V4lVideo::V4lVideo(const char* dev_name, int width_, int height_, float fps_, bool gs_, int scale_, io_method io)
     : io(io), fd(-1), buffers(0), n_buffers(0), running(false)
 {
 	width = width_;
@@ -45,7 +45,16 @@ V4lVideo::V4lVideo(const char* dev_name, int width_, int height_, float fps_, bo
 	fps = fps_;
     open_device(dev_name);
     gs = gs_;
+    scale = scale_;
     init_device(dev_name, width, height, fps);
+
+    scaleWidth = width / scale;
+    scaleHeight = height / scale;
+
+    if (scale > 1)
+    	scaler = new image_scaler(scale);
+    else
+    	scaler = NULL;
 
     Start();
 }
@@ -89,31 +98,57 @@ bool V4lVideo::GrabROSNewest(sensor_msgs::ImagePtr msg) {
 
 	GrabNewest(image, true);
 
-
 	if (gs) {
 		convertImage = (unsigned char*) malloc(height * width);
-		yuyv2gs(image, convertImage, height * width);
+		convertToGS(image, convertImage);
 		msg->encoding = "mono8";
-		msg->step = width;
-		msg->data.resize(height * width);
-		memcpy((unsigned char*)(&msg->data[0]), convertImage, height * width);
+		msg->step = scaleWidth;
 	}
 	else {
 		convertImage = (unsigned char*) malloc(height * width * 3);
-		yuyv2bgr(image, convertImage, height * width);
+		convertToBGR(image, convertImage);
 		msg->encoding = "bgr8";
-		msg->step = width * 3;
-		msg->data.resize(height * width * 3);
-		memcpy((unsigned char*)(&msg->data[0]), convertImage, height * width * 3);
+		msg->step = scaleWidth * 3;
 	}
 
-	msg->height = height;
-	msg->width = width;
+	msg->data.resize(scaleHeight * msg->step);
+	memcpy((unsigned char*)(&msg->data[0]), convertImage, scaleHeight * msg->step);
+	msg->height = scaleHeight;
+	msg->width = scaleWidth;
 	msg->is_bigendian = false;
 
 	free(image);
 	free(convertImage);
 
+	return true;
+}
+
+bool V4lVideo::convertToGS(unsigned char* image, unsigned char *convertImage) {
+
+	if (scaler == NULL) {
+		yuyv2gs(image, convertImage, height * width);
+	} else {
+		unsigned char* intConvertImage = (unsigned char*) malloc(height * width);
+		yuyv2gs(image, intConvertImage, height * width);
+
+		scaler->gs2thumbnail(intConvertImage, convertImage, height, width);
+		free(intConvertImage);
+	}
+
+	return true;
+}
+
+bool V4lVideo::convertToBGR(unsigned char* image, unsigned char *convertImage) {
+
+	if (scaler == NULL) {
+		yuyv2bgr(image, convertImage, height * width);
+	} else {
+		unsigned char* intConvertImage = (unsigned char*) malloc(height * width * 3);
+		yuyv2bgr(image, intConvertImage, height * width);
+
+		scaler->bgr2thumbnail(intConvertImage, convertImage, height, width);
+		free(intConvertImage);
+	}
 	return true;
 }
 

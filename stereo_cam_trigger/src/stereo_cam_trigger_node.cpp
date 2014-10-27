@@ -21,6 +21,7 @@ void trigger() {
 	//stereo_cam::stereo_cam_triggerPtr msg = boost::make_shared<stereo_cam::stereo_cam_trigger>();
 	stereo_cam::stereo_cam_trigger msg;
 	msg.trigger = true;
+	msg.header.stamp = ros::Time::now();
 	//msg->trigger = true;
 
 	if (seq_no == 65536)

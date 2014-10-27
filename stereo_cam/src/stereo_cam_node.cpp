@@ -10,12 +10,12 @@
 void stereoCamTriggerCallback(const stereo_cam::stereo_cam_triggerConstPtr& msg) {
 	ROS_DEBUG("Trigger received");
 	seq_no_ = msg->seq_no;
-	captureFrame();
+	captureFrame(msg->header.stamp);
 }
 
 bool openCamera() {
 	ROS_INFO("Opening device: %s Width: %i Height: %i FPS: %i Left Cam: %i Mono Mode: %i", device_.c_str(), width_, height_, fps_, left_camera_, mono_mode_);
-	v4l = new V4lVideo(device_.c_str(), width_, height_, fps_, gs_mode_);
+	v4l = new V4lVideo(device_.c_str(), width_, height_, fps_, gs_mode_, scale_);
 	return true;
 }
 
@@ -23,12 +23,19 @@ void closeCamera() {
 	v4l->Stop();
 }
 
-bool captureFrame() {
+bool captureFrame(ros::Time stamp) {
+	captureTimer->startSample();
 	sensor_msgs::ImagePtr msg = boost::make_shared<sensor_msgs::Image>();
 
 	v4l->GrabROSNewest(msg);
 
-	imagePub.publish(msg);
+	msg->header.stamp = stamp;
+	msg->header.frame_id = frameId;
+	sensor_msgs::CameraInfoPtr ci(new sensor_msgs::CameraInfo(camInfo->getCameraInfo()));
+	ci->header.frame_id = msg->header.frame_id;
+	ci->header.stamp = stamp;
+
+	imagePub.publish(msg, ci);
 
 	stereo_cam::stereo_cam_capture captureMsg;
 
@@ -41,18 +48,22 @@ bool captureFrame() {
 		else
 			captureMsg.right_image_received = true;
 	}
+
 	captureMsg.seq_no = seq_no_;
 
 	capturePub.publish(captureMsg);
+	captureTimer->stopSample();
 
-	ROS_DEBUG("Capture message published.");
+	ROS_DEBUG("Capture message published. Average time: %l", captureTimer->averageTime());
 
 	return true;
 }
 
 int main(int argc, char **argv){
 
-	ros::init(argc, argv, "stereo_camera_capture", ros::init_options::AnonymousName);
+	ros::init(argc, argv, "stereo_camera_capture"/*, ros::init_options::AnonymousName*/);
+
+	captureTimer = new timing("capture", 100);
 
 	ros::NodeHandle nh;
 	ros::NodeHandle nh_private("~");
@@ -64,7 +75,14 @@ int main(int argc, char **argv){
 	nh_private.param("width", width_, int(640));
 	nh_private.param("height", height_, int(480));
 	nh_private.param("fps", fps_, int(30));
+	nh_private.param("ci_url", ci_url_, std::string(""));
+	nh_private.param("scale", scale_, int(1));
 
+	std::string cameraName = (left_camera_ ? "left" : "right");
+
+	frameId = "stereo_camera_frame";
+
+	camInfo.reset(new camera_info_manager::CameraInfoManager(nh_private, cameraName, ci_url_));
 
 	if (camera_id_ < 0)
 		ROS_WARN("Invalid camera ID");
@@ -78,10 +96,10 @@ int main(int argc, char **argv){
 	image_transport::ImageTransport it(nh);
 
 	if (left_camera_) {
-		imagePub = it.advertise("camera/left_image", 1);
+		imagePub = it.advertiseCamera("left/image_raw", 1);
 	}
 	else {
-		imagePub = it.advertise("camera/right_image", 1);
+		imagePub = it.advertiseCamera("right/image_raw", 1);
 	}
 
 	capturePub = nh.advertise<stereo_cam::stereo_cam_capture>("stereo_cam_capture", 1);

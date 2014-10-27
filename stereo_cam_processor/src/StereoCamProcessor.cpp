@@ -246,25 +246,14 @@ void StereoCamProcessor::reprojectTo3D() {
 	    for(int x=0; x<dispImage.cols; ++x) {
 	        vec(0)=x; vec(1)=y; vec(2)=dispImage.at<float>(y, x); vec(3)=1;
 
-	        float val = vec(2);
-
 	        if (vec(2) < min)
 	        	min = vec(2);
 
 	        if (vec(2) > max)
 	        	max = vec(2);
-
-	        //if (vec(2) > 0)
-	        //	ROS_INFO("Vec 2: %f", vec(2));
 	        vec = q*vec;
-
-	        val = vec(2);
-	        //if (vec(2) > 0)
-	        //	ROS_INFO("Vec 1: %f 2: %f 3: %f 4:%f" , vec(0), vec(1), vec(2), vec(3));
 	        vec /= vec(3);
-	        val = vec(2);
-	        //if (vec(2) > 0)
-	        //	ROS_INFO("Vec2 1: %f 2: %f 3: %f 4:%f" , vec(0), vec(1), vec(2), vec(3));
+
 	        cv::Vec3f &point = threeDImage.at<cv::Vec3f>(y, x);
 	        point[0] = vec(0);
 	        point[1] = vec(1);
