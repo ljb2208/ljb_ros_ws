@@ -7,8 +7,8 @@
 
 #include "ros/ros.h"
 #include "std_msgs/String.h"
-#include "../../../devel/include/stereo_cam/stereo_cam_trigger.h"
-#include "../../../devel/include/stereo_cam/stereo_cam_capture.h"
+#include "stereo_cam/stereo_cam_trigger.h"
+#include "stereo_cam/stereo_cam_capture.h"
 
 bool left_image_rec = true;
 bool right_image_rec = true;

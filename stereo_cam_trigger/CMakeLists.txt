@@ -93,7 +93,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
-	/usr/local/include
+	${CATKIN_DEVEL_PREFIX}/include
 	${catkin_INCLUDE_DIRS}
 )
 

@@ -104,6 +104,10 @@ void image_scaler::bgr2thumbnail(unsigned char *BGR, unsigned char *TN, int heig
 	}
 }
 
+void image_scaler::cvgs2thumbnail(unsigned char *GS, unsigned char *TN, int height, int width) {
+
+}
+
 void image_scaler::gs2thumbnail(unsigned char *GS, unsigned char *TN, int height, int width) {
 	int newWidth = width / scale;
 	int newHeight = height / scale;

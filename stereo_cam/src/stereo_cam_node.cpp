@@ -25,9 +25,9 @@ void closeCamera() {
 
 bool captureFrame(ros::Time stamp) {
 	captureTimer->startSample();
-	sensor_msgs::ImagePtr msg = boost::make_shared<sensor_msgs::Image>();
+	sensor_msgs::ImagePtr msg;// = boost::make_shared<sensor_msgs::Image>();
 
-	v4l->GrabROSNewest(msg);
+	v4l->GrabROSNewestCV(&msg);
 
 	msg->header.stamp = stamp;
 	msg->header.frame_id = frameId;
@@ -53,8 +53,6 @@ bool captureFrame(ros::Time stamp) {
 
 	capturePub.publish(captureMsg);
 	captureTimer->stopSample();
-
-	ROS_DEBUG("Capture message published. Average time: %l", captureTimer->averageTime());
 
 	return true;
 }

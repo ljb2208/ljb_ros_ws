@@ -24,6 +24,8 @@ public:
 
 	void gs2thumbnail(unsigned char *GS, unsigned char *TN, int height, int width);
 	void bgr2thumbnail(unsigned char *BGR, unsigned char *TN, int height, int width);
+	void cvgs2thumbnail(unsigned char *GS, unsigned char *TN, int height, int width);
+	void cvbgr2thumbnail(unsigned char *BGR, unsigned char *TN, int height, int width);
 	unsigned char getGSPixel(unsigned char *img, float x, float y, int width);
 	Pixel getPixel(unsigned char *img, float x, float y, int width);
 

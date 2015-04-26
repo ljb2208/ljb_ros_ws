@@ -13,8 +13,8 @@
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <camera_info_manager/camera_info_manager.h>
-#include "../../../devel/include/stereo_cam/stereo_cam_trigger.h"
-#include "../../../devel/include/stereo_cam/stereo_cam_capture.h"
+#include "stereo_cam/stereo_cam_trigger.h"
+#include "stereo_cam/stereo_cam_capture.h"
 #include "v4l.h"
 #include "../include/timing.h"
 

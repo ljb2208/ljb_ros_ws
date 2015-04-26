@@ -56,6 +56,11 @@ V4lVideo::V4lVideo(const char* dev_name, int width_, int height_, float fps_, bo
     else
     	scaler = NULL;
 
+	gpuEnabled = cv::gpu::getCudaEnabledDeviceCount();
+
+	ROS_INFO("Cuda device count: %i", gpuEnabled);
+
+
     Start();
 }
 
@@ -92,7 +97,6 @@ std::string V4lVideo::PixFormat() const
 }
 
 bool V4lVideo::GrabROSNewest(sensor_msgs::ImagePtr msg) {
-
 	unsigned char* image = (unsigned char*) malloc(height * width * 3);
 	unsigned char* convertImage;
 
@@ -119,6 +123,95 @@ bool V4lVideo::GrabROSNewest(sensor_msgs::ImagePtr msg) {
 
 	free(image);
 	free(convertImage);
+
+	return true;
+}
+
+bool V4lVideo::GrabROSNewestCV(sensor_msgs::ImagePtr* msg) {
+
+	if (gpuEnabled > 0)
+		return GrabROSNewestCVGPU(msg);
+	else
+		return GrabROSNewestCVNonGPU(msg);
+}
+
+bool V4lVideo::GrabROSNewestCVGPU(sensor_msgs::ImagePtr* msg) {
+	unsigned char* image = (unsigned char*) malloc(height * width * 3);
+
+	GrabNewest(image, true);
+
+	cv_bridge::CvImagePtr convertImage = boost::make_shared<cv_bridge::CvImage>();
+	cv::gpu::GpuMat opencvimage(height, width, CV_8UC2, (void*)image);
+
+	if (gs) {
+		cv::gpu::cvtColor(opencvimage, opencvimage, CV_YUV2GRAY_YUYV);
+		convertImage->encoding = "mono8";
+	}
+	else {
+		cv::gpu::cvtColor(opencvimage, opencvimage, CV_YUV2BGR_YUYV);
+		convertImage->encoding = "bgr8";
+	}
+
+	if (scale != 1) {
+		cv::Size rs(opencvimage.cols / scale, opencvimage.rows / scale);
+		cv::gpu::resize(opencvimage, opencvimage,  rs, 0, 0, cv::INTER_LINEAR);
+	}
+
+	opencvimage.download(convertImage->image);
+	*msg = convertImage->toImageMsg();
+
+	free(image);
+
+	return true;
+}
+
+bool V4lVideo::GrabROSNewestCVNonGPU(sensor_msgs::ImagePtr* msg) {
+	unsigned char* image = (unsigned char*) malloc(height * width * 3);
+
+	GrabNewest(image, true);
+
+	ofstream myfile("example.yuv", ios::out | ios::binary | ios::ate);
+	if (myfile.is_open()) {
+		myfile.write((char*) image, (height * width * 3));
+		myfile.close();
+	}
+
+	ROS_INFO("height: %i width: %i", height, width);
+
+	unsigned char* newimage;
+
+	ifstream infile("/media/psf/Home/Downloads/example.yuv", ios::in | ios::binary |ios::ate);
+	if (infile.is_open()) {
+		streampos size;
+        size = infile.tellg();
+        newimage = new unsigned char[size];
+        infile.seekg(0, ios::beg);
+        infile.read((char*)newimage, size);
+        infile.close();
+	}
+
+	cv_bridge::CvImagePtr convertImage = boost::make_shared<cv_bridge::CvImage>();
+	cv::Mat opencvimage(height, width, CV_8UC2, (void*)newimage);
+
+
+	if (gs) {
+		cv::cvtColor(opencvimage, convertImage->image, CV_YUV2GRAY_YUYV);
+		convertImage->encoding = "mono8";
+	}
+	else {
+		cv::cvtColor(opencvimage, convertImage->image, CV_YUV2BGR_YUYV);
+		convertImage->encoding = "bgr8";
+	}
+
+	if (scale != 1) {
+		cv::Size rs(convertImage->image.cols / scale, convertImage->image.rows / scale);
+		cv::resize(convertImage->image, convertImage->image,  rs, 0, 0, cv::INTER_LINEAR);
+	}
+
+	*msg = convertImage->toImageMsg();
+
+	free(image);
+	free(newimage);
 
 	return true;
 }

@@ -12,8 +12,14 @@
 #include <linux/videodev2.h>
 #include <string>
 #include <image_transport/image_transport.h>
+#include <sensor_msgs/image_encodings.h>
 #include "../include/image_scaler.h"
 #include <cv.h>
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/gpu/gpu.hpp>
+#include <iostream>
+#include <fstream>
 
 typedef enum
 {
@@ -68,6 +74,7 @@ public:
     bool GrabNewest( unsigned char* image, bool wait = true );
 
     bool GrabROSNewest(sensor_msgs::ImagePtr msg);
+    bool GrabROSNewestCV(sensor_msgs::ImagePtr* msg);
 
 
 protected:
@@ -99,6 +106,7 @@ protected:
     bool gs;
     bool thumbnail;
     int scale;
+    int gpuEnabled;
 
     image_scaler* scaler;
 
@@ -109,6 +117,10 @@ protected:
     void yuyv2bgr(unsigned char *YUV, unsigned char *RGB, int NumPixels);
     void yuyv2gs(unsigned char *YUV, unsigned char *GS, int NumPixels);
     void yuv2gs(int y, unsigned char *gs);
+
+    bool GrabROSNewestCVGPU(sensor_msgs::ImagePtr* msg);
+    bool GrabROSNewestCVNonGPU(sensor_msgs::ImagePtr* msg);
+
 };
 
 
